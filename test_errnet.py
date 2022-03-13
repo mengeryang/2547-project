@@ -16,7 +16,7 @@ opt.no_log =True
 opt.display_id=0
 opt.verbose = False
 
-datadir = '.\\dataset\\'
+datadir = './dataset'
 
 # Define evaluation/test dataset
 

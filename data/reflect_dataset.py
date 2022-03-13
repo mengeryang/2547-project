@@ -150,7 +150,7 @@ class CEILTestDataset(BaseDataset):
         super(CEILTestDataset, self).__init__()
         self.size = size
         self.datadir = datadir
-        self.fns = fns or os.listdir(join(datadir, 'blended'))
+        self.fns = fns or os.listdir(join(datadir, 'blended/'))
         self.enable_transforms = enable_transforms
         self.unaligned_transforms = unaligned_transforms
         self.round_factor = round_factor
