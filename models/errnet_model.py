@@ -173,7 +173,7 @@ class ERRNetModel(ERRNetBase):
     def __init__(self):
         self.epoch = 0
         self.iterations = 0
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def print_network(self):
         print('--------------------- Model ---------------------')
@@ -390,7 +390,7 @@ class NetworkWrapper(ERRNetBase):
     def __init__(self):
         self.epoch = 0
         self.iterations = 0
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def print_network(self):
         print('--------------------- NetworkWrapper ---------------------')

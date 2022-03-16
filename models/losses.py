@@ -20,6 +20,7 @@ def compute_gradient(img):
     return gradx,grady
 
 
+
 class GradientLoss(nn.Module):
     def __init__(self):
         super(GradientLoss, self).__init__()
@@ -128,7 +129,7 @@ class GANLoss(nn.Module):
         if use_l1:
             self.loss = nn.L1Loss()
         else:
-            self.loss = nn.BCEWithLogitsLoss() # absorb sigmoid into BCELoss
+            self.loss = nn.BCEWithLogitsLoss()  # absorb sigmoid into BCELoss
 
     def get_target_tensor(self, input, target_is_real):
         target_tensor = None
@@ -136,15 +137,13 @@ class GANLoss(nn.Module):
             create_label = ((self.real_label_var is None) or
                             (self.real_label_var.numel() != input.numel()))
             if create_label:
-                real_tensor = self.Tensor(input.size()).fill_(self.real_label)
-                self.real_label_var = real_tensor
+                self.real_label_var = self.Tensor(input.size()).fill_(self.real_label)
             target_tensor = self.real_label_var
         else:
             create_label = ((self.fake_label_var is None) or
                             (self.fake_label_var.numel() != input.numel()))
             if create_label:
-                fake_tensor = self.Tensor(input.size()).fill_(self.fake_label)
-                self.fake_label_var = fake_tensor
+                self.fake_label_var = self.Tensor(input.size()).fill_(self.fake_label)
             target_tensor = self.fake_label_var
         return target_tensor
 
@@ -160,8 +159,10 @@ class GANLoss(nn.Module):
             return self.loss(input, target_tensor)
 
 
-class DiscLoss():
+# Discriminator Loss
+class DiscLoss:
     def name(self):
+        # standard GAN
         return 'SGAN'
 
     def initialize(self, opt, tensor):
