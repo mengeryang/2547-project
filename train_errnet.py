@@ -66,6 +66,13 @@ if __name__ == '__main__':
     """Main Loop"""
     engine = Engine(opt)
 
+    layer_prefixes = ['deconv', 'pyramid_module']
+    for name, param in engine.model.net_i.named_parameters():
+        if any(prefix in name for prefix in layer_prefixes):
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
+
     def set_learning_rate(lr):
         for optimizer in engine.model.optimizers:
             print('[i] set learning rate to {}'.format(lr))

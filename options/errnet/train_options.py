@@ -32,6 +32,7 @@ class TrainOptions(BaseOptions):
         # for discriminator
         self.parser.add_argument('--which_model_D', type=str, default='disc_vgg', choices=['disc_vgg', 'disc_patch'])
         self.parser.add_argument('--gan_type', type=str, default='rasgan', help='gan/sgan : Vanilla GAN; rasgan : relativistic gan')
+        self.parser.add_argument('--freeze_D', action='store_true', help='freeze discriminator')
         
         # loss weight
         self.parser.add_argument('--unaligned_loss', type=str, default='vgg', help='learning rate policy: vgg|mse|ctx|ctx_vgg')
@@ -39,5 +40,6 @@ class TrainOptions(BaseOptions):
         
         self.parser.add_argument('--lambda_gan', type=float, default=0.01, help='weight for gan loss')
         self.parser.add_argument('--lambda_vgg', type=float, default=0.1, help='weight for vgg loss')
+
         
         self.isTrain = True
