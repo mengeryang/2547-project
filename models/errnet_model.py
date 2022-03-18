@@ -256,7 +256,7 @@ class ERRNetModel(ERRNetBase):
 
         if self.opt.lambda_gan > 0:
             self.loss_G_GAN = self.loss_dic['gan'].get_g_loss(
-                self.netD, self.input, self.output_i, self.target_t) #self.pred_real.detach())
+                self.netD, self.input, self.output_i, self.target_t)
             self.loss_G += self.loss_G_GAN*self.opt.lambda_gan
         
         if self.aligned:
@@ -296,7 +296,7 @@ class ERRNetModel(ERRNetBase):
         self._train()
         self.forward()
 
-        if self.opt.lambda_gan > 0:
+        if not self.opt.freeze_D and self.opt.lambda_gan > 0:
             self.optimizer_D.zero_grad()
             self.backward_D()
             self.optimizer_D.step()

@@ -4,10 +4,6 @@ import numpy as np
 from torch.nn import init
 import functools
 from torch.optim import lr_scheduler
-
-import util.util as util
-from collections import OrderedDict
-from .vgg import Vgg16, Vgg19
 ###############################################################################
 # Functions
 ###############################################################################
