@@ -312,9 +312,11 @@ class ERRNetModel(ERRNetBase):
         if self.loss_icnn_vgg is not None:
             ret_errors['VGG'] = self.loss_icnn_vgg.item()
             
-        if self.opt.lambda_gan > 0 and self.loss_G_GAN is not None:
-            ret_errors['G'] = self.loss_G_GAN.item()
+        if self.loss_D is not None:
             ret_errors['D'] = self.loss_D.item()
+
+        if self.loss_G_GAN is not None:
+            ret_errors['G'] = self.loss_G_GAN.item()
 
         if self.loss_CX is not None:
             ret_errors['CX'] = self.loss_CX.item()
