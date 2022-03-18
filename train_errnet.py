@@ -18,7 +18,7 @@ if __name__ == '__main__':
         opt.display_id = 1
         opt.display_freq = 20
         opt.print_freq = 20
-        opt.nEpochs = 40
+        opt.nEpochs = 1
         opt.max_dataset_size = 100
         opt.no_log = False
         opt.nThreads = 0

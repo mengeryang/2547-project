@@ -152,15 +152,6 @@ class ERRNetBase(BaseModel):
         with torch.no_grad():
             output_i = self.forward()
             output_i = tensor2im(output_i)
-                # if os.path.exists(join(savedir, name,'t_output.png')):
-                #     i = 2
-                #     while True:
-                #         if not os.path.exists(join(savedir, name,'t_output_{}.png'.format(i))):
-                #             Image.fromarray(output_i.astype(np.uint8)).save(join(savedir, name,'t_output_{}.png'.format(i)))
-                #             break
-                #         i += 1
-                # else:
-                #     Image.fromarray(output_i.astype(np.uint8)).save(join(savedir, name,'t_output.png'))
             if self.data_name is not None and savedir is not None:                
                 Image.fromarray(output_i.astype(np.uint8)).save(join(savedir, name, '{}.png'.format(self.opt.name)))
                 Image.fromarray(tensor2im(self.input).astype(np.uint8)).save(join(savedir, name, 'm_input.png'))
@@ -342,25 +333,16 @@ class ERRNetModel(ERRNetBase):
     @staticmethod
     def load(model, resume_epoch=None):
         icnn_path = model.opt.icnn_path
-        state_dict = None
-
         if icnn_path is None:
-            model_path = util.get_model_list(model.save_dir, model.name(), epoch=resume_epoch)
-            state_dict = torch.load(model_path)
-            model.epoch = state_dict['epoch']
-            model.iterations = state_dict['iterations']
-            model.net_i.load_state_dict(state_dict['icnn'])
-            if model.isTrain:
-                model.optimizer_G.load_state_dict(state_dict['opt_g'])
-        else:
-            state_dict = torch.load(icnn_path)
-            model.net_i.load_state_dict(state_dict['icnn'])
-            model.epoch = state_dict['epoch']
-            model.iterations = state_dict['iterations']
-            # if model.isTrain:
-            #     model.optimizer_G.load_state_dict(state_dict['opt_g'])
+            icnn_path = util.get_model_list(model.save_dir, model.name(), epoch=resume_epoch)
+
+        state_dict = torch.load(icnn_path, map_location=torch.device('cuda:{}'.format(model.opt.gpu_ids[0])))
+        model.epoch = state_dict['epoch']
+        model.iterations = state_dict['iterations']
+        model.net_i.load_state_dict(state_dict['icnn'])
 
         if model.isTrain:
+            model.optimizer_G.load_state_dict(state_dict['opt_g'])
             if 'netD' in state_dict:
                 print('Resume netD ...')
                 model.netD.load_state_dict(state_dict['netD'])
