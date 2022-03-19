@@ -79,7 +79,7 @@ if __name__ == '__main__':
     # engine.model.opt.lambda_gan = 0.01
     set_learning_rate(1e-4)
     while engine.epoch < opt.nEpochs:
-        if engine.epoch == 20:
+        if engine.epoch >= 20:
             engine.model.opt.lambda_gan = 0.01 # gan loss is added after epoch 20
         if engine.epoch == 30:
             set_learning_rate(5e-5)

@@ -45,7 +45,7 @@ def paired_data_transforms(img_1, img_2, unaligned_transforms=False):
 
     i, j, h, w = get_params(img_1, (224, 224))
     img_1 = F.crop(img_1, i, j, h, w)
-    
+
     if unaligned_transforms:
         i_shift = random.randint(-10, 10)
         j_shift = random.randint(-10, 10)
