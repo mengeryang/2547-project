@@ -165,6 +165,7 @@ class ERRNetModel(ERRNetBase):
         self.epoch = 0
         self.iterations = 0
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.loss_D = None
 
     def print_network(self):
         print('--------------------- Model ---------------------')
