@@ -23,7 +23,7 @@ class HighpassLoss(nn.Module):
         self.lowpass = T.GaussianBlur(kernel_size=(7, 7), sigma=(7, 7))
 
     def forward(self, predict, target):
-        return self.loss(self.lowpass(predict), self.lowpass(target))
+        return self.loss(predict - self.lowpass(predict), target - self.lowpass(target))
 
 
 class GradientLoss(nn.Module):
