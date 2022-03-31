@@ -20,6 +20,7 @@ def compute_gradient(img):
     return gradx,grady
 
 
+
 class GradientLoss(nn.Module):
     def __init__(self):
         super(GradientLoss, self).__init__()
@@ -128,7 +129,7 @@ class GANLoss(nn.Module):
         if use_l1:
             self.loss = nn.L1Loss()
         else:
-            self.loss = nn.BCEWithLogitsLoss() # absorb sigmoid into BCELoss
+            self.loss = nn.BCEWithLogitsLoss()  # absorb sigmoid into BCELoss
 
     def get_target_tensor(self, input, target_is_real):
         target_tensor = None
@@ -136,15 +137,13 @@ class GANLoss(nn.Module):
             create_label = ((self.real_label_var is None) or
                             (self.real_label_var.numel() != input.numel()))
             if create_label:
-                real_tensor = self.Tensor(input.size()).fill_(self.real_label)
-                self.real_label_var = real_tensor
+                self.real_label_var = self.Tensor(input.size()).fill_(self.real_label)
             target_tensor = self.real_label_var
         else:
             create_label = ((self.fake_label_var is None) or
                             (self.fake_label_var.numel() != input.numel()))
             if create_label:
-                fake_tensor = self.Tensor(input.size()).fill_(self.fake_label)
-                self.fake_label_var = fake_tensor
+                self.fake_label_var = self.Tensor(input.size()).fill_(self.fake_label)
             target_tensor = self.fake_label_var
         return target_tensor
 
@@ -160,8 +159,10 @@ class GANLoss(nn.Module):
             return self.loss(input, target_tensor)
 
 
-class DiscLoss():
+# Discriminator Loss
+class DiscLoss:
     def name(self):
+        # standard GAN
         return 'SGAN'
 
     def initialize(self, opt, tensor):
@@ -247,6 +248,88 @@ class DiscLossRa(DiscLoss):
         return loss_D * 0.5, pred_fake, pred_real
 
 
+class MS_SSIM_L1_Loss(nn.Module):
+    # Have to use cuda, otherwise the speed is too slow.
+    def __init__(self, gaussian_sigmas=[0.5, 1.0, 2.0, 4.0, 8.0],
+                 data_range = 1.0,
+                 K=(0.01, 0.03),
+                 alpha=0.025,
+                 compensation=200.0,
+                 cuda_dev=0,):
+        super(MS_SSIM_L1_Loss, self).__init__()
+        self.DR = data_range
+        self.C1 = (K[0] * data_range) ** 2
+        self.C2 = (K[1] * data_range) ** 2
+        self.pad = int(2 * gaussian_sigmas[-1])
+        self.alpha = alpha
+        self.compensation=compensation
+        filter_size = int(4 * gaussian_sigmas[-1] + 1)
+        g_masks = torch.zeros((3*len(gaussian_sigmas), 1, filter_size, filter_size))
+        for idx, sigma in enumerate(gaussian_sigmas):
+            # r0,g0,b0,r1,g1,b1,...,rM,gM,bM
+            g_masks[3*idx+0, 0, :, :] = self._fspecial_gauss_2d(filter_size, sigma)
+            g_masks[3*idx+1, 0, :, :] = self._fspecial_gauss_2d(filter_size, sigma)
+            g_masks[3*idx+2, 0, :, :] = self._fspecial_gauss_2d(filter_size, sigma)
+        self.g_masks = g_masks.cuda(cuda_dev)
+
+    def _fspecial_gauss_1d(self, size, sigma):
+        """Create 1-D gauss kernel
+        Args:
+            size (int): the size of gauss kernel
+            sigma (float): sigma of normal distribution
+        Returns:
+            torch.Tensor: 1D kernel (size)
+        """
+        coords = torch.arange(size).to(dtype=torch.float)
+        coords -= size // 2
+        g = torch.exp(-(coords ** 2) / (2 * sigma ** 2))
+        g /= g.sum()
+        return g.reshape(-1)
+
+    def _fspecial_gauss_2d(self, size, sigma):
+        """Create 2-D gauss kernel
+        Args:
+            size (int): the size of gauss kernel
+            sigma (float): sigma of normal distribution
+        Returns:
+            torch.Tensor: 2D kernel (size x size)
+        """
+        gaussian_vec = self._fspecial_gauss_1d(size, sigma)
+        return torch.outer(gaussian_vec, gaussian_vec)
+
+    def forward(self, x, y):
+        b, c, h, w = x.shape
+        mux = F.conv2d(x, self.g_masks, groups=3, padding=self.pad)
+        muy = F.conv2d(y, self.g_masks, groups=3, padding=self.pad)
+
+        mux2 = mux * mux
+        muy2 = muy * muy
+        muxy = mux * muy
+
+        sigmax2 = F.conv2d(x * x, self.g_masks, groups=3, padding=self.pad) - mux2
+        sigmay2 = F.conv2d(y * y, self.g_masks, groups=3, padding=self.pad) - muy2
+        sigmaxy = F.conv2d(x * y, self.g_masks, groups=3, padding=self.pad) - muxy
+
+        # l(j), cs(j) in MS-SSIM
+        l  = (2 * muxy    + self.C1) / (mux2    + muy2    + self.C1)  # [B, 15, H, W]
+        cs = (2 * sigmaxy + self.C2) / (sigmax2 + sigmay2 + self.C2)
+
+        lM = l[:, -1, :, :] * l[:, -2, :, :] * l[:, -3, :, :]
+        PIcs = cs.prod(dim=1)
+
+        loss_ms_ssim = 1 - lM*PIcs  # [B, H, W]
+
+        loss_l1 = F.l1_loss(x, y, reduction='none')  # [B, 3, H, W]
+        # average l1 loss in 3 channels
+        gaussian_l1 = F.conv2d(loss_l1, self.g_masks.narrow(dim=0, start=-3, length=3),
+                               groups=3, padding=self.pad).mean(1)  # [B, H, W]
+
+        loss_mix = self.alpha * loss_ms_ssim + (1 - self.alpha) * gaussian_l1 / self.DR
+        loss_mix = self.compensation*loss_mix
+
+        return loss_mix.mean()
+
+
 def init_loss(opt, tensor):
     disc_loss = None
     content_loss = None
@@ -254,10 +337,15 @@ def init_loss(opt, tensor):
     loss_dic = {}
 
     pixel_loss = ContentLoss()
-    pixel_loss.initialize(MultipleLoss([nn.MSELoss(), GradientLoss()], [0.2,0.4]))
-
+    if opt.pixel_loss == 'mse+grad':
+        pixel_loss.initialize(MultipleLoss([nn.MSELoss(), GradientLoss()], [0.2, 0.4]))
+    elif opt.pixel_loss == 'ms_ssim_l1+grad':
+        pixel_loss.initialize(MultipleLoss([MS_SSIM_L1_Loss(), GradientLoss()], [0.2, 0.4]))
+    elif opt.pixel_loss == 'ms_ssim_l1':
+        pixel_loss.initialize(MultipleLoss([MS_SSIM_L1_Loss()], [0.6]))
+    else:
+        raise NotImplementedError('pixel loss {} is not implemented.'.format(opt.pixel_loss))
     loss_dic['t_pixel'] = pixel_loss
-    loss_dic['r_pixel'] = pixel_loss
 
     if opt.lambda_gan > 0:
         if opt.gan_type == 'sgan' or opt.gan_type == 'gan':

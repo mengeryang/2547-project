@@ -14,22 +14,13 @@ import util.util as util
 import data.torchdata as torchdata
 
 
-def __scale_width(img, target_width):
+def __scale_img(img, target_size):
     ow, oh = img.size
-    if (ow == target_width):
-        return img
-    w = target_width
-    h = int(target_width * oh / ow)
-    h = math.ceil(h / 2.) * 2  # round up to even
-    return img.resize((w, h), Image.BICUBIC)
-
-def __scale_height(img, target_height):
-    ow, oh = img.size
-    if (oh == target_height):
-        return img
-    h = target_height
-    w = int(target_height * ow / oh)
-    w = math.ceil(w / 2.) * 2  # round up to even
+    h = target_size if oh < ow else int(target_size * oh / ow)
+    w = target_size if ow <= oh else int(target_size * ow / oh)
+    # round up to even
+    h = math.ceil(h / 2.) * 2
+    w = math.ceil(w / 2.) * 2
     return img.resize((w, h), Image.BICUBIC)
 
 
@@ -43,28 +34,19 @@ def paired_data_transforms(img_1, img_2, unaligned_transforms=False):
         i = random.randint(0, h - th)
         j = random.randint(0, w - tw)
         return i, j, th, tw
-    
-    # target_size = int(random.randint(224+10, 448) / 2.) * 2
-    target_size = int(random.randint(224, 448) / 2.) * 2
-    # target_size = int(random.randint(256, 480) / 2.) * 2
-    ow, oh = img_1.size
-    if ow >= oh:
-        img_1 = __scale_height(img_1, target_size)
-        img_2 = __scale_height(img_2, target_size)
-    else:
-        img_1 = __scale_width(img_1, target_size)
-        img_2 = __scale_width(img_2, target_size)
+
+    target_size = int(random.randint(224, 448) / 2.) * 2  # round up to even
+    img_1 = __scale_img(img_1, target_size)
+    img_2 = __scale_img(img_2, target_size)
 
     if random.random() < 0.5:
         img_1 = F.hflip(img_1)
         img_2 = F.hflip(img_2)
 
-    i, j, h, w = get_params(img_1, (224,224))
-    # i, j, h, w = get_params(img_1, (256,256))
+    i, j, h, w = get_params(img_1, (224, 224))
     img_1 = F.crop(img_1, i, j, h, w)
-    
+
     if unaligned_transforms:
-        # print('random shift')
         i_shift = random.randint(-10, 10)
         j_shift = random.randint(-10, 10)
         i += i_shift
@@ -150,7 +132,7 @@ class CEILTestDataset(BaseDataset):
         super(CEILTestDataset, self).__init__()
         self.size = size
         self.datadir = datadir
-        self.fns = fns or os.listdir(join(datadir, 'blended'))
+        self.fns = fns or os.listdir(join(datadir, 'blended/'))
         self.enable_transforms = enable_transforms
         self.unaligned_transforms = unaligned_transforms
         self.round_factor = round_factor
