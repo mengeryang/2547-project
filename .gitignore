@@ -11,3 +11,6 @@ bak
 *.zip
 
 dataset/
+=======
+.sh
+.out

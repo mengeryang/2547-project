@@ -1,4 +1,7 @@
 from os.path import join
+
+import torch.cuda
+
 from options.errnet.train_options import TrainOptions
 from engine import Engine
 from data.image_folder import read_fns
@@ -97,4 +100,5 @@ if __name__ == '__main__':
 
         if engine.epoch % 5 == 0:
             engine.eval(eval_dataloader_ceilnet, dataset_name='testdata_table2')
-            engine.eval(eval_dataloader_real, dataset_name='testdata_real20')
+            # engine.eval(eval_dataloader_real, dataset_name='testdata_real20')
+            torch.cuda.empty_cache()
