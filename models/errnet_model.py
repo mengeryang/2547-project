@@ -1,4 +1,3 @@
-from curses import KEY_A1
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -452,7 +451,7 @@ class ERRNetALWModel(ERRNetBase):
             # initialize uncertainty parameters
             self.uncertainty_params = nn.ParameterDict()
             for key, val in self.loss_dic.items():
-                self.uncertainty_params[key] = nn.Parameter(-1 * torch.ones(1))
+                self.uncertainty_params[key] = nn.Parameter(-1 * torch.ones(1)).to(self.device)
 
             # self.uncertainty_params['gan'] = nn.Parameter(4.6 * torch.ones(1))
 
