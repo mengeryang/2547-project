@@ -18,15 +18,30 @@ if __name__ == '__main__':
     opt.verbose = False
 
     datadir = './dataset/'
-
+    engine = Engine(opt)
+    result_dir = './results/'
+    res = None
     # Define evaluation/test dataset
-
-    eval_dataset_ceilnet = datasets.CEILTestDataset(join(datadir, 'testdata_reflection_synthetic_table2/'))
-    # eval_dataset_sir2 = datasets.CEILTestDataset(join(datadir, 'sir2_withgt'))
-
-    # eval_dataset_real = datasets.CEILTestDataset(
-    #     join(datadir, 'real/'),
-    #     fns=read_fns('real_test.txt'))
+    if opt.testcase == 1:
+        eval_dataset_ceilnet = datasets.CEILTestDataset(join(datadir, 'testdata_reflection_synthetic_table2/'))
+        eval_dataloader_ceilnet = datasets.DataLoader(
+            eval_dataset_ceilnet, batch_size=1, shuffle=False,
+            num_workers=opt.nThreads, pin_memory=True)
+        # evaluate on synthetic test data from CEILNet
+        res = engine.eval(eval_dataloader_ceilnet, dataset_name='testdata_table2',
+                          savedir=join(result_dir, 'CEILNet_table2'))
+    elif opt.testcase == 2:
+        eval_dataset_real = datasets.CEILTestDataset(
+            join(datadir, 'real/'),
+            fns=read_fns('real_test.txt'), enable_transforms=True)
+        eval_dataloader_real = datasets.DataLoader(
+            eval_dataset_real, batch_size=1, shuffle=False,
+            num_workers=opt.nThreads, pin_memory=True)
+        #evaluate on real-world images
+        res = engine.eval(eval_dataloader_real, dataset_name='testdata_real', savedir=join(result_dir, 'real'))
+    else:
+        raise NotImplementedError
+    print(res)
 
     # eval_dataset_postcard = datasets.CEILTestDataset(join(datadir, 'postcard'))
     # eval_dataset_solidobject = datasets.CEILTestDataset(join(datadir, 'solidobject'))
@@ -37,14 +52,6 @@ if __name__ == '__main__':
     # test_dataset_unaligned_dynamic = datasets.RealDataset(join(datadir, 'refined_unaligned_data/unaligned_dynamic/blended'))
     # test_dataset_sir2 = datasets.RealDataset(join(datadir, 'sir2_wogt/blended'))
 
-
-    eval_dataloader_ceilnet = datasets.DataLoader(
-        eval_dataset_ceilnet, batch_size=1, shuffle=False,
-        num_workers=opt.nThreads, pin_memory=True)
-
-    # eval_dataloader_real = datasets.DataLoader(
-    #     eval_dataset_real, batch_size=1, shuffle=False,
-    #     num_workers=opt.nThreads, pin_memory=True)
 
     # eval_dataloader_sir2 = datasets.DataLoader(
     #     eval_dataset_sir2, batch_size=1, shuffle=False,
@@ -79,14 +86,6 @@ if __name__ == '__main__':
     #     num_workers=opt.nThreads, pin_memory=True)
 
 
-    engine = Engine(opt)
-
-    """Main Loop"""
-    result_dir = './results/'
-
-    # evaluate on synthetic test data from CEILNet
-    res = engine.eval(eval_dataloader_ceilnet, dataset_name='testdata_table2', savedir=join(result_dir, 'CEILNet_table2'))
-    print(res)
     # evaluate on four real-world benchmarks
     # res = engine.eval(eval_dataloader_real, dataset_name='testdata_real')
 

@@ -42,5 +42,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--lambda_gan', type=float, default=0.01, help='weight for gan loss')
         self.parser.add_argument('--lambda_vgg', type=float, default=0.1, help='weight for vgg loss')
 
+        # for eval
+        self.parser.add_argument('--testcase', type=int, default=1, help='testcase for evaluation')
         
         self.isTrain = True
