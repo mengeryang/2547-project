@@ -178,6 +178,12 @@ def write_loss(writer, prefix, avg_meters, iteration):
             os.path.join(prefix, key), meter, iteration)
 
 
+def write_loss_weights(writer, prefix, param_dict, iteration):
+    for key, val in param_dict.items():
+        writer.add_scalar(
+            os.path.join(prefix, key), val, iteration)
+
+
 """progress bar"""
 import socket
 

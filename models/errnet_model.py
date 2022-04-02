@@ -1,3 +1,4 @@
+from curses import KEY_A1
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -453,6 +454,8 @@ class ERRNetALWModel(ERRNetBase):
             for key, val in self.loss_dic.items():
                 self.uncertainty_params[key] = nn.Parameter(-1 * torch.ones(1))
 
+            # self.uncertainty_params['gan'] = nn.Parameter(4.6 * torch.ones(1))
+
             # at this moment do not consider unaligned losses
             cxloss = losses.ContentLoss()
             if opt.unaligned_loss == 'vgg':
@@ -582,6 +585,12 @@ class ERRNetALWModel(ERRNetBase):
             ret_errors['CX'] = self.loss_CX.item()
 
         return ret_errors
+    
+    def get_current_uncertainty_params(self):
+        param_dict = {}
+        for key, val in self.uncertainty_params.items():
+            param_dict[key] = val.item()
+        return param_dict
 
     def get_current_visuals(self):
         ret_visuals = OrderedDict()
