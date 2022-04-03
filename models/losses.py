@@ -1,15 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import init
-import functools
-import numpy as np
-from torch import autograd
-import torchvision.models as models
-import util.util as util
 from models.vgg import Vgg19
-from torch.autograd import Function
 from models.CX import CX_loss
+from scipy import ndimage
+from util.util import tensor2im
+import torchvision.transforms as T
 
 ###############################################################################
 # Functions
@@ -19,6 +15,15 @@ def compute_gradient(img):
     grady=img[...,1:]-img[...,:-1]
     return gradx,grady
 
+
+class HighpassLoss(nn.Module):
+    def __init__(self):
+        super(HighpassLoss, self).__init__()
+        self.loss = nn.L1Loss()
+        self.lowpass = T.GaussianBlur(kernel_size=(7, 7), sigma=(7, 7))
+
+    def forward(self, predict, target):
+        return self.loss(predict - self.lowpass(predict), target - self.lowpass(target))
 
 
 class GradientLoss(nn.Module):
@@ -343,6 +348,8 @@ def init_loss(opt, tensor):
         pixel_loss.initialize(MultipleLoss([MS_SSIM_L1_Loss(), GradientLoss()], [0.2, 0.4]))
     elif opt.pixel_loss == 'ms_ssim_l1':
         pixel_loss.initialize(MultipleLoss([MS_SSIM_L1_Loss()], [0.6]))
+    elif opt.pixel_loss == 'highpass':
+        pixel_loss.initialize(MultipleLoss([nn.MSELoss(), HighpassLoss()], [0.2, 0.4]))
     else:
         raise NotImplementedError('pixel loss {} is not implemented.'.format(opt.pixel_loss))
     loss_dic['t_pixel'] = pixel_loss

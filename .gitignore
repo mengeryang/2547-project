@@ -9,3 +9,7 @@ runs
 .rsyncignore
 bak
 *.zip
+
+dataset/
+.sh
+.out

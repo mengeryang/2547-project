@@ -37,10 +37,12 @@ class TrainOptions(BaseOptions):
         # loss weight
         self.parser.add_argument('--unaligned_loss', type=str, default='vgg', help='learning rate policy: vgg|mse|ctx|ctx_vgg')
         self.parser.add_argument('--vgg_layer', type=int, default=31, help='vgg layer of unaligned loss')
-        self.parser.add_argument('--pixel_loss', type=str, default='mse+grad', help='pixel loss function: mse+grad|ms_ssim_l1+grad|ms_ssim_l1')
+        self.parser.add_argument('--pixel_loss', type=str, default='mse+grad', help='pixel loss function: mse+grad|ms_ssim_l1+grad|ms_ssim_l1|highpass')
         
         self.parser.add_argument('--lambda_gan', type=float, default=0.01, help='weight for gan loss')
         self.parser.add_argument('--lambda_vgg', type=float, default=0.1, help='weight for vgg loss')
 
+        # for eval
+        self.parser.add_argument('--testcase', type=int, default=1, help='testcase for evaluation')
         
         self.isTrain = True
