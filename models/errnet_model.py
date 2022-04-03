@@ -379,6 +379,7 @@ class ERRNetALWModel(ERRNetBase):
         self.epoch = 0
         self.iterations = 0
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.loss_D = None
 
     def print_network(self):
         print('--------------------- Model ---------------------')
@@ -449,9 +450,10 @@ class ERRNetALWModel(ERRNetBase):
             self.loss_dic['t_vgg'] = vggloss
 
             # initialize uncertainty parameters
-            self.uncertainty_params = nn.ParameterDict()
+            uncertainty_params = nn.ParameterDict()
             for key, val in self.loss_dic.items():
-                self.uncertainty_params[key] = nn.Parameter(-1 * torch.ones(1)).to(self.device)
+                uncertainty_params[key] = nn.Parameter(-1 * torch.ones(1).to(self.device))
+            self.net_i.uncertainty_params = uncertainty_params
 
             # self.uncertainty_params['gan'] = nn.Parameter(4.6 * torch.ones(1))
 
@@ -496,7 +498,7 @@ class ERRNetALWModel(ERRNetBase):
         self.loss_D, self.pred_fake, self.pred_real = self.loss_dic['gan'].get_loss(
             self.netD, self.input, self.output_i, self.target_t)
 
-        (self.loss_D * torch.exp(-self.uncertainty_params['gan'])).backward(retain_graph=True)
+        (self.loss_D * torch.exp(-self.net_i.uncertainty_params['gan'])).backward(retain_graph=True)
 
     def backward_G(self):
         # Make it a tiny bit faster
@@ -512,26 +514,26 @@ class ERRNetALWModel(ERRNetBase):
         if self.opt.lambda_gan > 0:
             self.loss_G_GAN = self.loss_dic['gan'].get_g_loss(
                 self.netD, self.input, self.output_i, self.target_t)
-            self.loss_G += self.loss_G_GAN * torch.exp(-self.uncertainty_params['gan'])
-            self.loss_G += self.uncertainty_params['gan']
+            self.loss_G += self.loss_G_GAN * torch.exp(-self.net_i.uncertainty_params['gan'])
+            self.loss_G += self.net_i.uncertainty_params['gan']
         
         if self.aligned:
             self.loss_icnn_pixel = 0
             for key, val in self.loss_dic.items():
                 if key == 't_vgg' or key == 'gan' or key == 't_cx':
-                    pass
-                self.loss_icnn_pixel += self.loss_dic[key].get_loss(self.output_i, self.target_t) * torch.exp(-self.uncertainty_params[key])
-                self.loss_G += self.uncertainty_params[key]
+                    continue
+                self.loss_icnn_pixel += self.loss_dic[key].get_loss(self.output_i, self.target_t) * torch.exp(-self.net_i.uncertainty_params[key])
+                self.loss_G += self.net_i.uncertainty_params[key]
             
             self.loss_icnn_vgg = self.loss_dic['t_vgg'].get_loss(
                 self.output_i, self.target_t)
 
-            self.loss_G += self.loss_icnn_pixel + self.loss_icnn_vgg * torch.exp(-self.uncertainty_params['t_vgg'])
-            self.loss_G += self.uncertainty_params['t_vgg']
+            self.loss_G += self.loss_icnn_pixel + self.loss_icnn_vgg * torch.exp(-self.net_i.uncertainty_params['t_vgg'])
+            self.loss_G += self.net_i.uncertainty_params['t_vgg']
         else:
             self.loss_CX = self.loss_dic['t_cx'].get_loss(self.output_i, self.target_t)
-            self.loss_G += self.loss_CX * torch.exp(-self.uncertainty_params['t_cx'])
-            self.loss_G += self.uncertainty_params['t_cx']
+            self.loss_G += self.loss_CX * torch.exp(-self.net_i.uncertainty_params['t_cx'])
+            self.loss_G += self.net_i.uncertainty_params['t_cx']
 
         self.loss_G *= 0.5
         self.loss_G.backward()
@@ -587,8 +589,9 @@ class ERRNetALWModel(ERRNetBase):
     
     def get_current_uncertainty_params(self):
         param_dict = {}
-        for key, val in self.uncertainty_params.items():
-            param_dict[key] = val.item()
+        for key, val in self.net_i.uncertainty_params.items():
+            param_dict[key] = torch.exp(-val).item()
+            param_dict[key] *= 0.5
         return param_dict
 
     def get_current_visuals(self):
