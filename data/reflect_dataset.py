@@ -118,7 +118,7 @@ class CEILDataset(BaseDataset):
         B, R, M = self.data_synthesis(t_img, r_img)
 
         fn = os.path.basename(B_path)
-        return {'input': M, 'target_t': B, 'target_r': R, 'fn': fn}
+        return {'input': M, 'target_t': B, 'target_r': R, 'fn': fn, 'real': False}
 
     def __len__(self):
         if self.size is not None:
@@ -153,7 +153,7 @@ class CEILTestDataset(BaseDataset):
         B = to_tensor(t_img)
         M = to_tensor(m_img)
 
-        dic =  {'input': M, 'target_t': B, 'fn': fn, 'real':True, 'target_r': B} # fake reflection gt 
+        dic =  {'input': M, 'target_t': B, 'fn': fn, 'real': True, 'target_r': B} # fake reflection gt
         if self.flag is not None:
             dic.update(self.flag)
         return dic
@@ -245,7 +245,7 @@ class FusionDataset(BaseDataset):
         for i, ratio in enumerate(self.fusion_ratios):
             if random.random() < ratio/residual or i == len(self.fusion_ratios) - 1:
                 dataset = self.datasets[i]
-                return dataset[index%len(dataset)]
+                return dataset[index % len(dataset)]
             residual -= ratio
     
     def __len__(self):

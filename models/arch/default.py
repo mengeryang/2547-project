@@ -91,6 +91,56 @@ class DRNet(torch.nn.Module):
         return x
 
 
+class DRNet_uncertainty(torch.nn.Module):
+    def __init__(self, in_channels, out_channels, n_feats, n_resblocks, norm=nn.BatchNorm2d,
+                 se_reduction=None, res_scale=1, bottom_kernel_size=3, pyramid=False):
+        super(DRNet_uncertainty, self).__init__()
+        # Initial convolution layers
+        conv = nn.Conv2d
+        deconv = nn.ConvTranspose2d
+        act = nn.ReLU(True)
+
+        self.pyramid_module = None
+        self.conv1 = ConvLayer(conv, in_channels, n_feats, kernel_size=bottom_kernel_size, stride=1, norm=None, act=act)
+        self.conv2 = ConvLayer(conv, n_feats, n_feats, kernel_size=3, stride=1, norm=norm, act=act)
+        self.conv3 = ConvLayer(conv, n_feats, n_feats, kernel_size=3, stride=2, norm=norm, act=act)
+
+        # Residual layers
+        dilation_config = [1] * n_resblocks
+
+        self.res_module = nn.Sequential(*[ResidualBlock(
+            n_feats, dilation=dilation_config[i], norm=norm, act=act,
+            se_reduction=se_reduction, res_scale=res_scale) for i in range(n_resblocks)])
+
+        # Upsampling Layers
+        self.deconv1 = ConvLayer(deconv, n_feats, n_feats, kernel_size=4, stride=2, padding=1, norm=norm, act=act)
+
+        if not pyramid:
+            self.deconv2 = ConvLayer(conv, n_feats, n_feats, kernel_size=3, stride=1, norm=norm, act=act)
+            self.deconv3 = ConvLayer(conv, n_feats, out_channels, kernel_size=1, stride=1, norm=None, act=act)
+            self.deconv4 = ConvLayer(conv, n_feats, 1, kernel_size=1, stride=1, norm=None, act=nn.Sigmoid())
+        else:
+            self.deconv2 = ConvLayer(conv, n_feats, n_feats, kernel_size=3, stride=1, norm=norm, act=act)
+            self.pyramid_module = PyramidPooling(n_feats, n_feats, scales=(4, 8, 16, 32), ct_channels=n_feats // 4)
+            self.deconv3 = ConvLayer(conv, n_feats, out_channels, kernel_size=1, stride=1, norm=None, act=act)
+            self.deconv4 = ConvLayer(conv, n_feats, 1, kernel_size=1, stride=1, norm=None, act=nn.Sigmoid())
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.res_module(x)
+
+        x = self.deconv1(x)
+        x = self.deconv2(x)
+        if self.pyramid_module is not None:
+            x = self.pyramid_module(x)
+        img_out = self.deconv3(x)
+        uncertainty_out = self.deconv4(x)
+
+        return img_out, uncertainty_out
+
+
 class ConvLayer(torch.nn.Sequential):
     def __init__(self, conv, in_channels, out_channels, kernel_size, stride, padding=None, dilation=1, norm=None, act=None):
         super(ConvLayer, self).__init__()

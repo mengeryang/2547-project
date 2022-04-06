@@ -335,13 +335,50 @@ class MS_SSIM_L1_Loss(nn.Module):
         return loss_mix.mean()
 
 
+class ContentLoss_withUncertainty():
+    def initialize(self, loss):
+        self.criterion = loss
+
+    def get_loss(self, fakeIm, uncertainty, realIm):
+        return self.criterion(fakeIm, uncertainty, realIm)
+
+
+class MultipleLoss_withUncertainty(nn.Module):
+    def __init__(self, losses, weight=None):
+        super(MultipleLoss_withUncertainty, self).__init__()
+        self.losses = nn.ModuleList(losses)
+        self.weight = weight or [1 / len(self.losses)] * len(self.losses)
+
+    def forward(self, predict, uncertainty, target):
+        total_loss = 0
+        for weight, loss in zip(self.weight, self.losses):
+            if (not hasattr(loss, 'withUncertainty')) or (not loss.withUncertainty):
+                total_loss += loss(predict, target) * weight
+            else:
+                total_loss += loss(predict, uncertainty, target) * weight
+        return total_loss
+
+
+class UncertaintyLoss(nn.Module):
+    def __init__(self):
+        super(UncertaintyLoss, self).__init__()
+        self.weights = [0.2, 0.8]
+        self.withUncertainty = True
+
+    def forward(self, predict, uncertainty, target):
+        return torch.mean(self.weights[0] * torch.log(uncertainty) + self.weights[1] * torch.abs(predict - target) / uncertainty)
+
+
 def init_loss(opt, tensor):
     disc_loss = None
     content_loss = None
 
     loss_dic = {}
 
-    pixel_loss = ContentLoss()
+    if opt.pixel_loss != 'uncertainty':
+        pixel_loss = ContentLoss()
+    else:
+        pixel_loss = ContentLoss_withUncertainty()
     if opt.pixel_loss == 'mse+grad':
         pixel_loss.initialize(MultipleLoss([nn.MSELoss(), GradientLoss()], [0.2, 0.4]))
     elif opt.pixel_loss == 'ms_ssim_l1+grad':
@@ -350,6 +387,8 @@ def init_loss(opt, tensor):
         pixel_loss.initialize(MultipleLoss([MS_SSIM_L1_Loss()], [0.6]))
     elif opt.pixel_loss == 'highpass':
         pixel_loss.initialize(MultipleLoss([nn.MSELoss(), HighpassLoss()], [0.2, 0.4]))
+    elif opt.pixel_loss == 'uncertainty':
+        pixel_loss.initialize(MultipleLoss_withUncertainty([UncertaintyLoss()], [0.6]))
     else:
         raise NotImplementedError('pixel loss {} is not implemented.'.format(opt.pixel_loss))
     loss_dic['t_pixel'] = pixel_loss

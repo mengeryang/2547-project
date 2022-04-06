@@ -107,7 +107,10 @@ class ERRNetBase(BaseModel):
         with torch.no_grad():
             self.forward()
 
-            output_i = tensor2im(self.output_i)
+            if self.uncertainty:
+                output_i, uncertainty = self.output_i
+                uncertainty = tensor2im(uncertainty)
+            output_i = tensor2im(output_i)
             target = tensor2im(self.target_t)
 
             if self.aligned:
@@ -126,12 +129,16 @@ class ERRNetBase(BaseModel):
                         Image.fromarray(output_i.astype(np.uint8)).save(join(savedir, name, '{}.png'.format(self.opt.name)))
                     Image.fromarray(target.astype(np.uint8)).save(join(savedir, name, 't_label.png'))
                     Image.fromarray(tensor2im(self.input).astype(np.uint8)).save(join(savedir, name, 'm_input.png'))
+                    # Image.fromarray(uncertainty.astype(np.uint8)).save(join(savedir, name, 'uncertainty.png'))
+                    np.save(join(savedir, name, 'uncertainty'), uncertainty)
                 else:
                     if not os.path.exists(join(savedir, 'transmission_layer')):
                         os.makedirs(join(savedir, 'transmission_layer'))
                         os.makedirs(join(savedir, 'blended'))
                     Image.fromarray(target.astype(np.uint8)).save(join(savedir, 'transmission_layer', str(self._count)+'.png'))
                     Image.fromarray(tensor2im(self.input).astype(np.uint8)).save(join(savedir, 'blended', str(self._count)+'.png'))
+                    # Image.fromarray(uncertainty.astype(np.uint8)).save(join(savedir, 'blended', str(self._count)+'.png'))
+                    np.save(join(savedir, 'blended', str(self._count)), uncertainty)
                     self._count += 1
 
             return res
@@ -192,6 +199,10 @@ class ERRNetModel(ERRNetBase):
             in_channels += 1472
         
         self.net_i = arch.__dict__[self.opt.inet](in_channels, 3).to(self.device)
+        if self.opt.inet == 'errnet_uncertainty':
+            self.uncertainty = True
+        else:
+            self.uncertainty = False
         networks.init_weights(self.net_i, init_type=opt.init_type) # using default initialization as EDSR
         self.edge_map = EdgeMap(scale=1).to(self.device)
 
@@ -239,8 +250,12 @@ class ERRNetModel(ERRNetBase):
         for p in self.netD.parameters():
             p.requires_grad = True
 
+        if self.uncertainty:
+            output_i, uncertainty = self.output_i
+        else:
+            output_i = self.output_i
         self.loss_D, self.pred_fake, self.pred_real = self.loss_dic['gan'].get_loss(
-            self.netD, self.input, self.output_i, self.target_t)
+            self.netD, self.input, output_i, self.target_t)
 
         (self.loss_D*self.opt.lambda_gan).backward(retain_graph=True)
 
@@ -255,23 +270,61 @@ class ERRNetModel(ERRNetBase):
         self.loss_icnn_vgg = None
         self.loss_G_GAN = None
 
-        if self.opt.lambda_gan > 0:
-            self.loss_G_GAN = self.loss_dic['gan'].get_g_loss(
-                self.netD, self.input, self.output_i, self.target_t)
-            self.loss_G += self.loss_G_GAN*self.opt.lambda_gan
-        
-        if self.aligned:
-            self.loss_icnn_pixel = self.loss_dic['t_pixel'].get_loss(
-                self.output_i, self.target_t)
-            
-            self.loss_icnn_vgg = self.loss_dic['t_vgg'].get_loss(
-                self.output_i, self.target_t)
+        if self.uncertainty:
+            output_i, uncertainty = self.output_i
+            if self.opt.lambda_gan > 0:
+                self.loss_G_GAN = self.loss_dic['gan'].get_g_loss(
+                    self.netD, self.input, output_i, self.target_t)
+                self.loss_G += self.loss_G_GAN * self.opt.lambda_gan
 
-            self.loss_G += self.loss_icnn_pixel+self.loss_icnn_vgg*self.opt.lambda_vgg
+            if self.aligned:
+                self.loss_icnn_pixel = self.loss_dic['t_pixel'].get_loss(
+                    output_i, uncertainty, self.target_t)
+
+                self.loss_icnn_vgg = self.loss_dic['t_vgg'].get_loss(
+                    output_i, self.target_t)
+
+                self.loss_G += self.loss_icnn_pixel + self.loss_icnn_vgg * self.opt.lambda_vgg
+            else:
+                self.loss_CX = self.loss_dic['t_cx'].get_loss(output_i, self.target_t)
+
+                self.loss_G += self.loss_CX
         else:
-            self.loss_CX = self.loss_dic['t_cx'].get_loss(self.output_i, self.target_t)
-            
-            self.loss_G += self.loss_CX
+            output_i = self.output_i
+            if self.opt.lambda_gan > 0:
+                self.loss_G_GAN = self.loss_dic['gan'].get_g_loss(
+                    self.netD, self.input, output_i, self.target_t)
+                self.loss_G += self.loss_G_GAN * self.opt.lambda_gan
+
+            if self.aligned:
+                self.loss_icnn_pixel = self.loss_dic['t_pixel'].get_loss(
+                    output_i, self.target_t)
+
+                self.loss_icnn_vgg = self.loss_dic['t_vgg'].get_loss(
+                    output_i, self.target_t)
+
+                self.loss_G += self.loss_icnn_pixel + self.loss_icnn_vgg * self.opt.lambda_vgg
+            else:
+                self.loss_CX = self.loss_dic['t_cx'].get_loss(output_i, self.target_t)
+
+                self.loss_G += self.loss_CX
+        # if self.opt.lambda_gan > 0:
+        #     self.loss_G_GAN = self.loss_dic['gan'].get_g_loss(
+        #         self.netD, self.input, output_i, self.target_t)
+        #     self.loss_G += self.loss_G_GAN*self.opt.lambda_gan
+        #
+        # if self.aligned:
+        #     self.loss_icnn_pixel = self.loss_dic['t_pixel'].get_loss(
+        #         output_i, self.target_t)
+        #
+        #     self.loss_icnn_vgg = self.loss_dic['t_vgg'].get_loss(
+        #         output_i, self.target_t)
+        #
+        #     self.loss_G += self.loss_icnn_pixel+self.loss_icnn_vgg*self.opt.lambda_vgg
+        # else:
+        #     self.loss_CX = self.loss_dic['t_cx'].get_loss(output_i, self.target_t)
+        #
+        #     self.loss_G += self.loss_CX
         
         self.loss_G.backward()
 
@@ -342,10 +395,16 @@ class ERRNetModel(ERRNetBase):
         state_dict = torch.load(icnn_path, map_location=torch.device('cuda:{}'.format(model.opt.gpu_ids[0])))
         model.epoch = state_dict['epoch']
         model.iterations = state_dict['iterations']
-        model.net_i.load_state_dict(state_dict['icnn'])
+        model.net_i.load_state_dict(state_dict['icnn'], strict=False)
+        # model.net_i.load_state_dict(state_dict['icnn'])
 
         if model.isTrain:
-            model.optimizer_G.load_state_dict(state_dict['opt_g'])
+            old_opt_state = state_dict['opt_g']
+            new_opt_state = model.optimizer_G.state_dict()
+            temp = new_opt_state['param_groups'][0]['params']
+            new_opt_state.update(old_opt_state)
+            new_opt_state['param_groups'][0]['params'] = temp
+            model.optimizer_G.load_state_dict(new_opt_state)
             if 'netD' in state_dict:
                 print('Resume netD ...')
                 model.netD.load_state_dict(state_dict['netD'])
