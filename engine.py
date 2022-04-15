@@ -58,7 +58,7 @@ class Engine(object):
                 if opt.model == "errnet_alw_model":
                     # display loss weights in tensorboard
                     param_dict = model.get_current_uncertainty_params()
-                    util.write_loss_weights(self.writer, 'train', param_dict, iterations)
+                    util.write_loss_weights(self.writer, 'loss_param', param_dict, iterations)
             
                 if iterations % opt.display_freq == 0 and opt.display_id != 0:
                     save_result = iterations % opt.update_html_freq == 0

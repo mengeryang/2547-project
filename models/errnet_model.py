@@ -486,6 +486,7 @@ class ERRNetALWModel(ERRNetBase):
             self._init_optimizer([self.optimizer_G])
 
         if opt.resume:
+
             self.load(self, opt.resume_epoch)
         
         if opt.no_verbose is False:
@@ -612,6 +613,10 @@ class ERRNetALWModel(ERRNetBase):
         state_dict = torch.load(icnn_path, map_location=torch.device('cuda:{}'.format(model.opt.gpu_ids[0])))
         model.epoch = state_dict['epoch']
         model.iterations = state_dict['iterations']
+
+        for k in list(state_dict['icnn']):
+            if "uncertainty_params" in k:
+                del state_dict['icnn'][k]
         model.net_i.load_state_dict(state_dict['icnn'])
 
         if model.isTrain:

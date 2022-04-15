@@ -3,6 +3,7 @@
 *.pth
 __pycache__
 checkpoints
+results
 result
 runs
 .ssh*
