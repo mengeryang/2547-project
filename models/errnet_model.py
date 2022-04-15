@@ -412,26 +412,26 @@ class ERRNetALWModel(ERRNetBase):
         if self.isTrain:
             # define loss functions
             self.loss_dic = {}
-            if opt.pixel_loss == 'mse+grad':
-                mse_loss = losses.ContentLoss()
-                mse_loss.initialize(nn.MSELoss())
-                self.loss_dic['mse'] = mse_loss
-                gradient_loss = losses.ContentLoss()
-                gradient_loss.initialize(losses.GradientLoss())
-                self.loss_dic['grad'] = gradient_loss
-            elif opt.pixel_loss == 'ms_ssim_l1+grad':
-                ms_ssim_loss = losses.ContentLoss()
-                ms_ssim_loss.initialize(losses.MS_SSIM_L1_Loss())
-                self.loss_dic['ms_ssim'] = ms_ssim_loss
-                gradient_loss = losses.ContentLoss()
-                gradient_loss.initialize(losses.GradientLoss())
-                self.loss_dic['grad'] = gradient_loss
-            elif opt.pixel_loss == 'ms_ssim_l1':
-                ms_ssim_loss = losses.ContentLoss()
-                ms_ssim_loss.initialize(losses.MS_SSIM_L1_Loss())
-                self.loss_dic['ms_ssim'] = ms_ssim_loss
-            else:
-                raise NotImplementedError('pixel loss {} is not implemented.'.format(opt.pixel_loss))
+            loss_list = [loss for loss in opt.pixel_loss.split("+")]
+            for loss in loss_list:
+                if loss == 'mse':
+                    mse_loss = losses.ContentLoss()
+                    mse_loss.initialize(nn.MSELoss())
+                    self.loss_dic['mse'] = mse_loss
+                elif loss == 'grad':
+                    gradient_loss = losses.ContentLoss()
+                    gradient_loss.initialize(losses.GradientLoss())
+                    self.loss_dic['grad'] = gradient_loss
+                elif loss == 'ms_ssim_l1':
+                    ms_ssim_loss = losses.ContentLoss()
+                    ms_ssim_loss.initialize(losses.MS_SSIM_L1_Loss())
+                    self.loss_dic['ms_ssim'] = ms_ssim_loss
+                elif loss == 'highpass':
+                    highpass_loss = losses.ContentLoss()
+                    highpass_loss.initialize(losses.HighpassLoss())
+                    self.loss_dic['highpass'] = highpass_loss
+                else:
+                    raise NotImplementedError('pixel loss {} is not implemented.'.format(loss))
             
             if opt.gan_type == 'sgan' or opt.gan_type == 'gan':
                 disc_loss = losses.DiscLoss()
