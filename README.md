@@ -30,7 +30,7 @@ you can use `environment.yaml` to create your environment
 ## Usage
 ### Training
 
-* Train the model by ```python train_errnet.py --name errnet --hyper --pixel_loss [mse+grad|ms_ssim_l1+grad|ms_ssim_l1|highpass] ``` , by changing the value of `pixel_loss`, you can train the model with different kind of loss functions.
+* Train the model by ```python train_errnet.py --name errnet --hyper --pixel_loss [mse+grad|ms_ssim_l1+grad|ms_ssim_l1|highpass] --model errnet_alw_model``` , by changing the value of `pixel_loss`, you can train the model with different kind of loss functions.
 * Check ```options/errnet/train_options.py``` to see more training options. 
 
 ### Testing
